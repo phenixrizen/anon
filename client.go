@@ -258,8 +258,15 @@ func NewClient(conf Config) (*Client, error) {
 			return nil, err
 		}
 		torConf := &tor.StartConf{
-			DataDir:   tmpDataDir,
-			ExtraArgs: []string{},
+			DataDir: tmpDataDir,
+		}
+		if conf.Region != "" {
+			rcPath, err := CreateTorRc(tmpDataDir, conf.Region)
+			if err != nil {
+				return nil, err
+			}
+			args := []string{"-f", rcPath}
+			torConf.ExtraArgs = args
 		}
 		t, err := tor.Start(nil, torConf)
 		if err != nil {
@@ -606,4 +613,16 @@ func GetGeoIPData(ip string) (*GeoIPData, error) {
 		return nil, err
 	}
 	return geo, nil
+}
+
+func CreateTorRc(path, region string) (string, error) {
+	torRc := "ExitNodes {%s} StrictNodes 1\n"
+	exitNodeConf := fmt.Sprintf(torRc, region)
+	d := []byte(exitNodeConf)
+	rcPath := path + "/torrc-defaults"
+	err := ioutil.WriteFile(rcPath, d, 0644)
+	if err != nil {
+		return "", err
+	}
+	return rcPath, nil
 }

@@ -26,6 +26,7 @@ package anon
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -39,6 +40,7 @@ import (
 	"time"
 
 	"github.com/cretz/bine/tor"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 )
 
@@ -290,6 +292,7 @@ func NewClient(conf Config) (*Client, error) {
 
 			client.Debug("Successfully connected to Tor network...")
 			client.Debug("Current Tor Edge IP: %s", ip)
+			client.SetGeoData(ip)
 			break
 		}
 	}
@@ -416,11 +419,22 @@ func (c *Client) NewRemoteIP() error {
 			}
 			re := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 			ip := re.FindString(string(respBody))
-
-			c.Debug("New Tor Edge IP: %s", ip)
+			c.SetGeoData(ip)
 		}
 	}
 
+	return nil
+}
+
+func (c *Client) SetGeoData(ip string) error {
+	geo, err := GetGeoIPData(ip)
+	if err != nil {
+		c.Debug("error getting Tor network geo data, trying again...")
+		return c.Tor.Control.Signal("RELOAD")
+	}
+	c.Debug("New Tor Edge IP: %s", ip)
+	c.GeoIPData = geo
+	c.Debug("Geo IP Data: Country: %s", spew.Sdump(geo))
 	return nil
 }
 
@@ -562,4 +576,20 @@ func (c *Client) Post(url, bodyType string, body interface{}) (*http.Response, e
 // pre-filled url.Values form data.
 func (c *Client) PostForm(url string, data url.Values) (*http.Response, error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+}
+
+// GetGeoIPData - Makes a call with standard http client to get the GeoIPData
+func GetGeoIPData(ip string) (*GeoIPData, error) {
+	url := fmt.Sprintf("http://ip-api.com/json/%s", ip)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	geo := &GeoIPData{}
+	err = json.NewDecoder(resp.Body).Decode(&geo)
+	if err != nil {
+		return nil, err
+	}
+	return geo, nil
 }

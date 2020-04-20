@@ -248,7 +248,7 @@ func NewClient(conf Config) (*Client, error) {
 		return nil, errors.New("must pass a valid config with a logrus.Logger")
 	}
 	client := &Client{Logger: conf.Logger, Conf: conf}
-	httpClient := http.DefaultClient
+	var httpClient *http.Client
 	torUp := false
 
 	client.Debug("Starting tor proxy, please wait a few seconds...")
@@ -287,7 +287,7 @@ func NewClient(conf Config) (*Client, error) {
 
 		client.Transport = &http.Transport{DialContext: dialer.DialContext}
 
-		httpClient := &http.Client{Transport: client.Transport}
+		httpClient = &http.Client{Transport: client.Transport}
 
 		// check that we can connect through tor proxy
 		resp, err := httpClient.Get("https://check.torproject.org")
@@ -442,7 +442,7 @@ func (c *Client) NewRemoteIP() error {
 }
 
 func (c *Client) SetGeoData(ip string) error {
-	geo, err := GetGeoIPData(ip)
+	geo, err := c.GetGeoIPData(ip)
 	if err != nil {
 		c.Debug("error getting Tor network geo data, trying again...")
 		return c.Tor.Control.Signal("RELOAD")
@@ -600,7 +600,7 @@ func (c *Client) Shutdown() error {
 }
 
 // GetGeoIPData - Makes a call with standard http client to get the GeoIPData
-func GetGeoIPData(ip string) (*GeoIPData, error) {
+func (c *Client) GetGeoIPData(ip string) (*GeoIPData, error) {
 	url := fmt.Sprintf("http://ip-api.com/json/%s", ip)
 	resp, err := http.Get(url)
 	if err != nil {

@@ -18,4 +18,6 @@ func TestGetGeoIPData(t *testing.T) {
 	resp, err := anonHttpClient.Do(req)
 	require.NoError(err)
 	require.Equal(http.StatusOK, resp.StatusCode)
+	err = anonHttpClient.Shutdown()
+	require.NoError(err)
 }

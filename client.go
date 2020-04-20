@@ -253,7 +253,15 @@ func NewClient(conf Config) (*Client, error) {
 
 	client.Debug("Starting tor proxy, please wait a few seconds...")
 	for !torUp {
-		t, err := tor.Start(nil, nil)
+		tmpDataDir, err := ioutil.TempDir("", "tor-anon")
+		if err != nil {
+			return nil, err
+		}
+		torConf := &tor.StartConf{
+			DataDir:   tmpDataDir,
+			ExtraArgs: []string{},
+		}
+		t, err := tor.Start(nil, torConf)
 		if err != nil {
 			client.Debug("error starting tor process: %s", err)
 			return nil, err
@@ -576,6 +584,12 @@ func (c *Client) Post(url, bodyType string, body interface{}) (*http.Response, e
 // pre-filled url.Values form data.
 func (c *Client) PostForm(url string, data url.Values) (*http.Response, error) {
 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+}
+
+// Shutdown gracefully stops tor
+func (c *Client) Shutdown() error {
+	c.Debug("Shutting down Tor...")
+	return c.Tor.Close()
 }
 
 // GetGeoIPData - Makes a call with standard http client to get the GeoIPData

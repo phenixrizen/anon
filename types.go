@@ -11,12 +11,14 @@ import (
 type Config struct {
 	Debug  bool
 	Logger *logrus.Logger
+	Region string
 }
 
 // Client is used to make HTTP requests. It adds additional functionality
 // like automatic retries to tolerate minor outages.
 type Client struct {
 	HTTPClient *http.Client   // Internal HTTP client.
+	Region     string         // Region of the Tor Exit Node
 	Conf       Config         // Client Config
 	Logger     *logrus.Logger // Customer logger instance.
 
